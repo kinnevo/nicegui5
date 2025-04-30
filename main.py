@@ -4,10 +4,14 @@ import uuid
 import secrets
 import random
 from utilities.utils import initialize_users
-from utilities.database import UserDB
+from utilities.conversations import UserDB
+from utilities.databases import create_database
+
 from pages.admin import admin_page
 from pages.home1 import home1
 from pages.langflow_chat import chat_page
+
+
 
 
 @ui.page('/')
@@ -49,6 +53,9 @@ def shutdown():
 @app.on_startup
 def on_startup():
     print("Starting up...")
+
+    # Create database when module is imported
+    create_database()
 
     app.storage.general['user_list'] = initialize_users()
     print("Initializing users...")

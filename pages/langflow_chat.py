@@ -6,7 +6,7 @@ import os
 from typing import List, Optional
 import uuid
 from dotenv import load_dotenv
-from utilities.database import user_db
+from utilities.conversations import user_db
 from utilities.utils import find_user_from_pool, update_user_status
 
 #example of linkk

@@ -1,5 +1,7 @@
 # nicegui5
 
+uv venv .nicegui5 --python 3.12
+
 Upgraded version with the user managemente and chat interface from FastInnovation
 
 # Silicon Valley Visit Planner V0.5
@@ -11,7 +13,7 @@ Upgraded version with the user managemente and chat interface from FastInnovatio
 ```bash
 pip install uv
 uv venv
-source .venv/bin/activate
+source .nicegui5/bin/activate
 
 uv pip install -r requirements.txt
 

@@ -1,16 +1,54 @@
+# import pytz
+
+# # Set up San Francisco (Pacific Time) timezone
+# sf_timezone = pytz.timezone('America/Los_Angeles')
+
+# def get_sf_time():
+#     """Get current time in San Francisco timezone"""
+#     # Create a timezone-aware UTC datetime and then convert it to SF timezone
+#     return datetime.now(pytz.utc).astimezone(sf_timezone)
+
+
 import os
-from datetime import datetime
-from typing import Optional, Dict, Any
-from nicegui import app
 import psycopg2
-from psycopg2.extras import DictCursor
 from psycopg2.pool import SimpleConnectionPool
 from dotenv import load_dotenv
 
 load_dotenv()
 
-class UserDB:
-    def __init__(self):
+def create_database():
+    """Create the visit_sv database if it doesn't exist."""
+    # Connect to default postgres database first
+    conn = psycopg2.connect(
+        host=os.getenv('POSTGRES_HOST'),
+        database='postgres',  # Connect to default postgres db
+        user=os.getenv('POSTGRES_USER'),
+        password=os.getenv('POSTGRES_PASSWORD'),
+        port=os.getenv('POSTGRES_PORT', '5432')
+    )
+    conn.autocommit = True  # Required for creating database
+
+    new_database = os.getenv('POSTGRES_DB')
+    try:
+        with conn.cursor() as cursor:
+            # Check if database exists
+            cursor.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s", (new_database,))
+            exists = cursor.fetchone()
+            
+            if not exists:
+                cursor.execute(f'CREATE DATABASE {new_database}')
+                print(f"Database '{new_database}' created successfully")
+            else:
+                print(f"Database '{new_database}' already exists")
+    except psycopg2.Error as e:
+        print(f"Error creating database: {e}")
+    finally:
+        conn.close()
+
+class PostgresAdapter:
+    def __init__(self, tablename, create_table_sql):
+        self.tablename = tablename
+        self.create_table_sql = create_table_sql
         self.connection_pool = self._create_connection_pool()
         self._init_db()
 
@@ -32,91 +70,11 @@ class UserDB:
             self.connection_pool.closeall()
 
     def _init_db(self):
-        """Initialize the database with the conversations table."""
+        """Initialize the database with the required tables."""
         conn = self.connection_pool.getconn()
         try:
             with conn.cursor() as cursor:
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS conversations (
-                        session_id VARCHAR(255) PRIMARY KEY,
-                        username VARCHAR(255) NOT NULL,
-                        save_time TIMESTAMP NOT NULL,
-                        conversation_history TEXT
-                    )
-                ''')
+                cursor.execute(self.create_table_sql)
             conn.commit()
         finally:
             self.connection_pool.putconn(conn)
-
-    def create_conversation(self, session_id: str, username: str, conversation_history: str) -> bool:
-        """Create a new conversation record."""
-        conn = self.connection_pool.getconn()
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute('''
-                    INSERT INTO conversations (session_id, username, save_time, conversation_history)
-                    VALUES (%s, %s, %s, %s)
-                ''', (session_id, username, datetime.now(), conversation_history))
-            conn.commit()
-            return True
-        except psycopg2.IntegrityError:
-            return False
-        finally:
-            self.connection_pool.putconn(conn)
-
-    def update_conversation(self, session_id: str, conversation_history: str) -> bool:
-        """Update an existing conversation with new history."""
-        conn = self.connection_pool.getconn()
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute('''
-                    UPDATE conversations 
-                    SET conversation_history = %s 
-                    WHERE session_id = %s
-                ''', (conversation_history, session_id))
-            conn.commit()
-            return True
-        except psycopg2.Error:
-            return False
-        finally:
-            self.connection_pool.putconn(conn)
-
-    def get_conversation(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """Get conversation details by session_id."""
-        conn = self.connection_pool.getconn()
-        try:
-            with conn.cursor(cursor_factory=DictCursor) as cursor:
-                cursor.execute('SELECT * FROM conversations WHERE session_id = %s', (session_id,))
-                result = cursor.fetchone()
-                if result:
-                    return dict(result)
-            return None
-        finally:
-            self.connection_pool.putconn(conn)
-
-# Create a global instance
-user_db = UserDB()
-
-def save_db():
-    session_id = app.storage.browser['session_id']
-    username = app.storage.browser.get('username', 'Unknown User')
-    conversation = str(app.storage.browser['conversation_history'])
-    
-    # Try to update first
-    if not user_db.update_conversation(session_id, conversation):
-        # If update fails, create new conversation
-        user_db.create_conversation(session_id, username, conversation) 
-
-def get_conversation(session_id: str) -> Optional[Dict[str, Any]]:
-    """Get conversation details by session_id."""
-    conn = user_db.connection_pool.getconn()
-    try:
-        with conn.cursor(cursor_factory=DictCursor) as cursor:
-            cursor.execute('SELECT * FROM conversations WHERE session_id = %s', (session_id,))
-            result = cursor.fetchone()
-            if result:
-                return dict(result)
-            return None
-    finally:
-        user_db.connection_pool.putconn(conn)
-        

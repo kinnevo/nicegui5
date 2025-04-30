@@ -36,5 +36,6 @@ env.bak/
 venv.bak/
 
 .nicegui/
+.nicegui5
 
 old/
