@@ -23,20 +23,6 @@ def admin_page():
             ui.button('Return to Home', on_click=lambda: ui.navigate.to('/')).classes('bg-blue-500 text-white')
 
         with ui.card().classes('w-full max-w-3xl mx-auto shadow-lg'):
-            # columns = [
-            #     {'name': 'username', 'label': 'User Name', 'field': 'username'},
-            #     {'name': 'time_logged', 'label': 'Date & Time', 'field': 'time_logged'},
-            #     {'name': 'visits', 'label': 'Visits', 'field': 'visits'},
-            #     {'name': 'logged', 'label': 'Logged', 'field': 'logged'}
-            # ]
-            
-            # # Store table reference
-            # table = ui.table(
-            #     columns=columns,
-            #     rows=list(app.storage.general.get('user_list', {}).values()),
-            # )
-
-
 
             # Get the data
             data = get_all_users_logged_in()

@@ -35,7 +35,9 @@ def shutdown():
 
 
 @ui.page('/')
+@ui.page('/home')
 def home():
+    print(f"main.py 1: {app.storage.browser.get('conversation_history')}\n")
     with ui.column().classes('w-full items-center'):
         ui.label('Prepara tu exploración al Silicon Valley').classes('text-h3 q-mb-md')
         ui.label('Explora en forma colaborativa tu experiencia de planear una visita al Silicon Valley').classes('text-h5 q-mb-md')

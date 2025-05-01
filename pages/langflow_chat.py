@@ -73,7 +73,9 @@ def add_to_history(role: str, content: str, agent: str = "Unknown User", session
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "agent": agent
     } 
+    print(f"antes de append Main Content - add to history -: {app.storage.browser.get('conversation_history')}")
     app.storage.browser['conversation_history'].append(message)
+    print(f"despues de append Main Content - add to history -: {app.storage.browser.get('conversation_history')}")
 
 def display_conversation(conversation_history_txt, chat_display):
     # Build the complete content
@@ -89,6 +91,7 @@ def send_message(chat_display, message_input, session_id, visits):
         return
     
     try:
+        print(f"Sending message: {message_input.value}")
         # Store message before clearing input
         user_message = message_input.value.strip()
         message_input.value = ''  # Clear input early for better UX
@@ -108,6 +111,8 @@ def send_message(chat_display, message_input, session_id, visits):
                 add_to_history(role='assistant', content=assistant_message, agent=app.storage.browser.get("username", "Unknown User"), session_id=session_id)
                 display_conversation(app.storage.browser['conversation_history'], chat_display)
                 
+                print(f"Main Content - en send message -: {app.storage.browser.get('conversation_history')} visits: {app.storage.browser.get('visits')}")
+
                 # Save conversation to database
                 save_db(session_id, visits)
             else:
@@ -124,6 +129,9 @@ def send_message(chat_display, message_input, session_id, visits):
 @ui.page('/chat')
 def chat_page():
 
+    print(f"Main Content - 0 -: {app.storage.browser.get('conversation_history')}")
+
+
     #Find the current user or create a new one
     if app.storage.browser.get('username', "") == "":
         print("First - user is not logged in")
@@ -138,7 +146,7 @@ def chat_page():
         group_id = 'None'
         app.storage.browser['group_id'] = group_id
 
-        insert_user(username, session_id, group_id, datetime.now().isoformat(), 1, True)
+        insert_user(username, session_id, group_id, datetime.now().isoformat(), True)
 
     else:
         print("Second - user is logged in")
@@ -161,10 +169,10 @@ def chat_page():
             username = app.storage.browser.get('username', "")
             group_id = 'None'
             app.storage.browser['group_id'] = group_id
-            insert_user(username, session_id, group_id, datetime.now().isoformat(), 1, True)
+            insert_user(username, session_id, group_id, datetime.now().isoformat(), True)
 
 
-
+    print(f"Main Content: {app.storage.browser.get('conversation_history')}")
     # Main content
     with ui.column().classes('w-full max-w-5xl mx-auto p-4'):
         with ui.row().classes('w-full bg-gray-100 p-4 rounded-md justify-center'):
@@ -173,7 +181,7 @@ def chat_page():
         
         # Header with user info
         with ui.row().classes('w-full bg-gray-100 p-4 rounded-md justify-center'):
-            ui.button('Return to Home', on_click=lambda: ui.navigate.to('/')).classes('bg-blue-500 text-white')
+            ui.button('Return to Home', on_click=lambda: ui.navigate.to('/home')).classes('bg-blue-500 text-white')
             ui.button('Suggested Questions', on_click=lambda: questions_dialog.open()).classes('bg-blue-500 text-white')
             ui.button('Logout', on_click=logout_session).classes('bg-blue-500 text-white')
         with ui.row().classes('w-full bg-gray-100 p-4 rounded-md'):

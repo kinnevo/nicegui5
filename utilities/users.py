@@ -9,7 +9,6 @@ create_users_table_sql = """
                         session_id TEXT NOT NULL UNIQUE,
                         group_id TEXT NOT NULL,
                         last_active TIMESTAMP,
-                        visits INTEGER DEFAULT 0,
                         status TEXT DEFAULT 'Idle',
                         logged BOOLEAN DEFAULT FALSE
                     );
@@ -25,7 +24,7 @@ def generate_session_id() -> str:
     """Generate a unique session ID."""
     return str(uuid.uuid4())
 
-def insert_user(username: str, session_id: str, group_id: str, last_active: str, visits: int, logged: bool) -> bool:
+def insert_user(username: str, session_id: str, group_id: str, last_active: str, logged: bool) -> bool:
     """
     Insert a new user into the database.
     Returns status of the operation.
@@ -36,9 +35,9 @@ def insert_user(username: str, session_id: str, group_id: str, last_active: str,
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
-                INSERT INTO sv_users (username, session_id, group_id, last_active, visits, logged)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (username, session_id, group_id, last_active, visits, logged))
+                INSERT INTO sv_users (username, session_id, group_id, last_active, logged)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (username, session_id, group_id, last_active, logged))
             conn.commit()
             return True
     finally:
@@ -63,23 +62,6 @@ def logout_user(session_id: str) -> bool:
             """, (datetime.now(timezone.utc), session_id))
             conn.commit()
             return cursor.rowcount > 0
-    finally:
-        db.connection_pool.putconn(conn)
-
-def get_user_visit_count(session_id: str) -> int:
-    """Get the number of visits for a user."""
-    if db is None:
-        raise RuntimeError("Database not initialized")
-    conn = db.connection_pool.getconn()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("""
-                SELECT explorations_completed 
-                FROM sv_users 
-                WHERE session_id = %s
-            """, (session_id,))
-            result = cursor.fetchone()
-            return result[0] if result else 0
     finally:
         db.connection_pool.putconn(conn)
 
