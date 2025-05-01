@@ -3,14 +3,34 @@ from datetime import datetime, timedelta
 import uuid
 import secrets
 import random
-from utilities.utils import initialize_users
 from utilities.conversations import UserDB
-from utilities.databases import create_database
-
+from utilities.database import create_database
+from utilities.users import initialize_user_db
 from pages.admin import admin_page
-from pages.home1 import home1
 from pages.langflow_chat import chat_page
 
+@app.on_startup
+def on_startup():
+    print("Starting up...")
+
+    # Create database when module is imported
+    create_database()
+
+    # Initialize database
+    print("Initializing database...")
+    initialize_user_db()
+
+    #user_db = UserDB()
+    #user_db._init_db()
+    print("Database initialized")
+
+@app.on_shutdown
+def shutdown():
+    # This code runs when the app is shutting down
+    print("Application is shutting down...")
+    # Clean up resources, close connections, etc.
+    # Cleanup code here
+    pass
 
 
 
@@ -40,32 +60,6 @@ def home():
         ui.label('Inicia tu experiencia ahora mismos y crear tu futuro innovando.').classes('text-h6 q-mb-md')
         ui.html('<strong>Aviso de Privacidad</strong>: Las conversaciones en este sitio son almacenadas de manera anónima con el propósito exclusivo de analizar los intereses de los participantes y mejorar el desarrollo de experiencias de conocimiento. Toda la información recopilada es para uso interno y no será compartida con terceros.').classes('text-body2 q-mb-md text-justify')
 
-      
-@app.on_shutdown
-def shutdown():
-    # This code runs when the app is shutting down
-    print("Application is shutting down...")
-    # Clean up resources, close connections, etc.
-    # Cleanup code here
-    pass
-
-
-@app.on_startup
-def on_startup():
-    print("Starting up...")
-
-    # Create database when module is imported
-    create_database()
-
-    app.storage.general['user_list'] = initialize_users()
-    print("Initializing users...")
-
-    # Initialize database
-    print("Initializing database...")
-    user_db = UserDB()
-    user_db._init_db()
-    print("Database initialized")
-
-
+ 
 secret_key = secrets.token_hex(32)
 ui.run(title='SV Exploration', port=8080, favicon='static/favicon.svg', storage_secret=secret_key) 

@@ -7,8 +7,7 @@ from typing import List, Optional
 import uuid
 from dotenv import load_dotenv
 from utilities.conversations import user_db
-from utilities.utils import find_user_from_pool, update_user_status
-
+from utilities.users import user_logged_in, insert_user, update_user_status
 #example of linkk
 #        ui.link('Share Your Dreams', '/chat').props('flat color=primary')
 
@@ -29,6 +28,7 @@ def run_flow(message: str, history: Optional[List[dict]] = None) -> dict:
     # Get the current session ID and username from storage
     session_id = app.storage.browser.get('session_id', str(uuid.uuid4()))
     username = app.storage.browser.get('username', 'User')
+    group_id = app.storage.browser.get('group_id', 'None')
     
     if history and len(history) > 0:
         formatted_history = json.dumps(history)
@@ -84,7 +84,7 @@ def display_conversation(conversation_history_txt, chat_display):
     chat_display.content = content
 
 
-def send_message(chat_display, message_input, session_id):
+def send_message(chat_display, message_input, session_id, visits):
     if not message_input.value:
         return
     
@@ -109,7 +109,7 @@ def send_message(chat_display, message_input, session_id):
                 display_conversation(app.storage.browser['conversation_history'], chat_display)
                 
                 # Save conversation to database
-                save_db()
+                save_db(session_id, visits)
             else:
                 ui.notify('Invalid response from server', type='warning')
         finally:
@@ -123,20 +123,46 @@ def send_message(chat_display, message_input, session_id):
 
 @ui.page('/chat')
 def chat_page():
-    session_id = str(uuid.uuid4())
-    app.storage.browser['session_id'] = session_id
-    app.storage.browser['conversation_history'] = []
 
-    username = find_user_from_pool()
-    app.storage.browser['username'] = username
+    #Find the current user or create a new one
+    if app.storage.browser.get('username', "") == "":
+        print("First - user is not logged in")
+        username = f"user_{str(uuid.uuid4())}"
+        app.storage.browser['username'] = username
+        session_id = str(uuid.uuid4())
+        app.storage.browser['session_id'] = session_id
+        app.storage.browser['conversation_history'] = []
+        app.storage.browser['logged'] = True
+        app.storage.browser['time_logged'] = datetime.now().isoformat()
+        app.storage.browser['visits'] = 1
+        group_id = 'None'
+        app.storage.browser['group_id'] = group_id
 
-    if username == -1:    
-        with ui.dialog() as error_dialog:
-            with ui.card():
-                ui.label(f'No users available at this time, try again later').classes('text-h6 q-mb-md')
-                with ui.row().classes('w-full justify-end gap-2'):
-                    ui.button('Go Back', on_click=lambda: ui.navigate.to('/')).classes('bg-gray-500 text-white')
-        error_dialog.open()
+        insert_user(username, session_id, group_id, datetime.now().isoformat(), 1, True)
+
+    else:
+        print("Second - user is logged in")
+        if user_logged_in(app.storage.browser.get('username', "")):
+            print("Third - user is logged in")
+            # the information must be updated
+            app.storage.browser['visits'] += 1
+            session_id = app.storage.browser.get('session_id')
+            group_id = app.storage.browser.get('group_id')
+        else:
+            print("Fourth - user is not logged in")
+            # create a new session for the user 
+
+            session_id = str(uuid.uuid4())
+            app.storage.browser['session_id'] = session_id
+            app.storage.browser['conversation_history'] = []
+            app.storage.browser['logged'] = True
+            app.storage.browser['time_logged'] = datetime.now().isoformat()
+            app.storage.browser['visits'] = 1
+            username = app.storage.browser.get('username', "")
+            group_id = 'None'
+            app.storage.browser['group_id'] = group_id
+            insert_user(username, session_id, group_id, datetime.now().isoformat(), 1, True)
+
 
 
     # Main content
@@ -153,7 +179,8 @@ def chat_page():
         with ui.row().classes('w-full bg-gray-100 p-4 rounded-md'):
             ui.label(f'User: {app.storage.browser.get("username")}').classes('text-md')
             ui.label(f'Session: {app.storage.browser["session_id"]}').classes('text-md')
-
+            ui.label(f'Visits: {app.storage.browser["visits"]}').classes('text-md')
+ 
         # Questions Dialog
         with ui.dialog() as questions_dialog:
             with ui.card().classes('w-full max-w-2xl'):
@@ -172,7 +199,7 @@ def chat_page():
         message_input = ui.textarea('Type your message here...').classes('w-full h-50 mb-1')
 
         # Send button
-        ui.button('Send', on_click=lambda: send_message(chat_display, message_input, session_id)).classes('w-full')
+        ui.button('Send', on_click=lambda: send_message(chat_display, message_input, session_id, app.storage.browser['visits'])).classes('w-full')
         
         #with ui.row().classes('w-full max-w-5xl mx-auto p-2 justify-center gap-4'):
             #ui.button('Download a Files', on_click=download_file).classes('bg-blue-500 text-white')
@@ -180,7 +207,7 @@ def chat_page():
 
 def logout_session():
     def confirm_logout():
-        update_user_status(app.storage.browser['username'], False)
+        update_user_status(app.storage.browser['username'], app.storage.browser['session_id'])
         
         # Navigate to home page
         ui.navigate.to('/')
@@ -211,8 +238,7 @@ def download_file():
     # Create download link
     ui.download(content.encode('utf-8'), filename)
 
-def save_db():
-    session_id = app.storage.browser['session_id']
+def save_db(session_id, visits):
     username = app.storage.browser.get('username', 'Unknown User')
     # Convert to JSON string with double quotes
     conversation = json.dumps(app.storage.browser['conversation_history'], 
@@ -224,11 +250,11 @@ def save_db():
     
     if existing_conversation:
         # Update existing conversation
-        success = user_db.update_conversation(session_id, conversation)
+        success = user_db.update_conversation(session_id, conversation, visits)
         ui.notify('Conversation updated' if success else 'Update failed')
     else:
         # Create new conversation
-        success = user_db.create_conversation(session_id, username, conversation)
+        success = user_db.create_conversation(session_id, username, conversation, visits)
         ui.notify('Conversation saved' if success else 'Save failed')
 
         

@@ -34,7 +34,6 @@ def create_database():
             # Check if database exists
             cursor.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s", (new_database,))
             exists = cursor.fetchone()
-            
             if not exists:
                 cursor.execute(f'CREATE DATABASE {new_database}')
                 print(f"Database '{new_database}' created successfully")
